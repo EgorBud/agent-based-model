@@ -8,6 +8,9 @@ power=10
 share_cost=10
 birth_cost=100
 agents=[]
+all_conn=2
+energy_cap=0
+all_usef=0
 class Quantum:
     def __init__(self, a):
         self.inf=a.copy()
@@ -25,14 +28,15 @@ class sourse:
             if dist<self.range:
                 aim.new(self.inf, int(self.power*(self.range-dist)))
 class agent:
-    def __init__(self, x=random.random(), y=random.random()):
-
+    def __init__(self, x=random.random(), y=random.random(), dad=None):
+        global all_conn
+        global all_usef
         self.dead=False
-        self.neibours={}
         self.quanta = []
         self.moral = np.array([0.0] * n)
         self.energy = 100
         self.useful = 1
+        all_usef +=1
         self.hist =[]
         for i in range(n):
             self.moral[i]=random.random()
@@ -41,8 +45,20 @@ class agent:
         self.resist=random.random()
         self.age=1
 
+        self.neibours=set()
+        for i in agents:
+            p=i.neib_count()/all_conn
+            if(random.random()<p):
+                i.neibours.add(self)
+                self.neibours.add(i)
+                all_conn=all_conn+2
+        if(dad!=None):
+            self.neibours.add(dad)
+            dad.neibours.add(self)
+
     def upd(self):
-        b=self.moral.sum()
+        global all_usef
+        b=self.moral.sum()+self.useful
         self.age+=1
         '''
         for i in range(len(self.moral)):
@@ -53,17 +69,23 @@ class agent:
         i=np.argmax(self.moral)
         learned = (1 / (1 + np.exp(-2 * a * (n * self.moral[i] - b))))
         self.useful += learned * self.moral[i]
+        all_usef += learned * self.moral[i]
         self.moral[i] -= learned * self.moral[i]
-        self.energy+=self.useful
+        self.energy+=min(self.useful, energy_cap*self.useful/all_usef)
         self.hist.append(self.useful)
         #self.useful-=self.age*0.6
-        self.energy-=self.age*7.5
+        self.energy-=self.age**2/10
         if self.energy >=birth_cost:
             self.energy-=birth_cost
             agents.append(agent(self.x+(random.random()-1/2)/10, self.y+(random.random()-1/2)/10))
         if self.energy<=0:
             #print('dead')
+
             self.dead=True
+            all_usef-=self.useful
+            for i in self.neibours:
+                all_conn-=2
+                i.neibours.remove(self)
             del self
     def new(self, q, power):
         self.moral+=(np.array(q.inf)*power)
@@ -83,28 +105,35 @@ class agent:
                         i.new(q, power)
                         self.energy-=share_cost
     def get_neib(self):
-        return [(i.x, i.y) for i in self.neibours.keys()]
-
+        return [(i.x, i.y) for i in self.neibours]
+    def neib_count(self):
+        return len(self.neibours)
 
     def show(self):
-        print(self.moral, self.energy, self.useful, self.dead)
-na=20
-neib=4
+        print(self.moral, self.energy, self.useful, self.neib_count())
+na=40
+#neib=4
+energy_cap=na*1000
+all_usef=0
 
 
 for i in range(na):
     agents.append(agent())
+print(all_usef)
+'''
 for i in agents:
     for j in range(neib):
         bro=agents[int(random.random()*na)]
-        i.neibours[bro]=1
-        bro.neibours[i]=1
+        if(bro!=i):
+            i.neibours.add(bro)
+            bro.neibours.add(i)
+'''
 ur=sourse([1, 0,0,0], 1, 1)
 ul=sourse([0, 1,0,0], 0, 1)
 lr=sourse([0, 0,1,0], 1, 0)
 ll=sourse([0, 0,0,1], 0, 0)
 sourses=[ur, ul, lr, ll]
-time=200
+time=100
 shoot_pause=3
 
 for t in range(time):
@@ -112,8 +141,9 @@ for t in range(time):
     if (t%shoot_pause==0):
         for i in sourses:
             i.shoot(agents)
-    for i in agents:
+    for i in agents.copy():
         i.upd()
+    #    print(len(agents))
     agents=list(filter(lambda x: not x.dead, agents))
 for i in agents:
     i.show()
