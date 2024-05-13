@@ -44,7 +44,6 @@ class agent:
         self.y=y
         self.resist=random.random()
         self.age=1
-
         self.neibours=set()
         for i in agents:
             p=i.neib_count()/all_conn
@@ -110,16 +109,15 @@ class agent:
         return len(self.neibours)
 
     def show(self):
-        print(self.moral, self.energy, self.useful, self.neib_count())
+        print(self.moral, self.energy, self.useful, self.neib_count(), self.x, self.y)
 na=40
 #neib=4
-energy_cap=na*1000
+energy_cap=na*100
 all_usef=0
 
 
 for i in range(na):
-    agents.append(agent())
-print(all_usef)
+    agents.append(agent(random.random(), random.random()))
 '''
 for i in agents:
     for j in range(neib):
@@ -133,9 +131,14 @@ ul=sourse([0, 1,0,0], 0, 1)
 lr=sourse([0, 0,1,0], 1, 0)
 ll=sourse([0, 0,0,1], 0, 0)
 sourses=[ur, ul, lr, ll]
-time=100
+time=1000
 shoot_pause=3
-
+print(agents)
+for i in agents:
+    i.show()
+plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
+plt.scatter([i.x for i in agents], [i.y for i in agents], c='b')
+plt.show()
 for t in range(time):
     print(t)
     if (t%shoot_pause==0):
@@ -143,17 +146,17 @@ for t in range(time):
             i.shoot(agents)
     for i in agents.copy():
         i.upd()
-    #    print(len(agents))
     agents=list(filter(lambda x: not x.dead, agents))
+    plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
+    plt.scatter([i.x for i in agents], [i.y for i in agents], c='b')
+    plt.draw()
+    plt.pause(.001)
+    plt.clf()
 for i in agents:
     i.show()
 
 plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
 plt.scatter([i.x for i in agents], [i.y for i in agents])
-plt.show()
+plt.draw()
 
-#q=agents[int(random.random()*len(agents))].get_neib()
-#plt.plot(np.exp(np.arange(1, time)/5))
-#plt.plot(agents[int(random.random()*na)].hist)
-plt.show()
 #print(q)
