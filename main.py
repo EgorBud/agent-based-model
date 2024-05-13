@@ -46,17 +46,20 @@ class agent:
         self.age=1
         self.neibours=set()
         for i in agents:
-            p=i.neib_count()/all_conn
-            if(random.random()<p):
-                i.neibours.add(self)
-                self.neibours.add(i)
-                all_conn=all_conn+2
+            if(i!=self):
+                p=i.neib_count()/all_conn
+                if(random.random()<p):
+
+                    i.neibours.add(self)
+                    self.neibours.add(i)
+                    all_conn=all_conn+2
         if(dad!=None):
             self.neibours.add(dad)
             dad.neibours.add(self)
 
     def upd(self):
         global all_usef
+        global all_conn
         b=self.moral.sum()+self.useful
         self.age+=1
         '''
@@ -73,6 +76,14 @@ class agent:
         self.energy+=min(self.useful, energy_cap*self.useful/all_usef)
         self.hist.append(self.useful)
         #self.useful-=self.age*0.6
+        if(len(self.neibours)==0):
+            for i in agents:
+                if (i != self):
+                    p=i.neib_count()/all_conn
+                    if(random.random()<p):
+                        i.neibours.add(self)
+                        self.neibours.add(i)
+                        all_conn=all_conn+2
         self.energy-=self.age**2/10
         if self.energy >=birth_cost:
             self.energy-=birth_cost
@@ -81,11 +92,13 @@ class agent:
             #print('dead')
 
             self.dead=True
+            self.neibours.discard(self)
             all_usef-=self.useful
             for i in self.neibours:
                 all_conn-=2
                 i.neibours.remove(self)
             del self
+
     def new(self, q, power):
         self.moral+=(np.array(q.inf)*power)
         power-=1
@@ -110,13 +123,16 @@ class agent:
 
     def show(self):
         print(self.moral, self.energy, self.useful, self.neib_count(), self.x, self.y)
-na=40
+na=100
 #neib=4
 energy_cap=na*100
 all_usef=0
+agents.append(agent(random.random(), random.random()))
+agents.append(agent(random.random(), random.random()))
+agents[0].neibours.add(agents[1])
+agents[1].neibours.add(agents[0])
 
-
-for i in range(na):
+for i in range(na-2):
     agents.append(agent(random.random(), random.random()))
 '''
 for i in agents:
@@ -133,9 +149,7 @@ ll=sourse([0, 0,0,1], 0, 0)
 sourses=[ur, ul, lr, ll]
 time=1000
 shoot_pause=3
-print(agents)
-for i in agents:
-    i.show()
+
 plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
 plt.scatter([i.x for i in agents], [i.y for i in agents], c='b')
 plt.show()
@@ -152,7 +166,9 @@ for t in range(time):
     plt.draw()
     plt.pause(.001)
     plt.clf()
+print(all_conn)
 for i in agents:
+    #print(i.neibours)
     i.show()
 
 plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
