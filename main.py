@@ -14,6 +14,14 @@ agents=[]
 all_conn=2
 energy_cap=0
 all_usef=0
+def angle(v1, v2):
+    n1=(np.linalg.norm(v1))
+    n2=(np.linalg.norm(v2))
+    if(n1==0)or (n2==0):
+        return 0
+    v1_u = v1/n1
+    v2_u = v2/n2
+    return (np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))+1
 class Quantum:
     def __init__(self, a):
         self.inf=a.copy()
@@ -30,26 +38,28 @@ class sourse:
         for aim in aims:
             dist=(aim.x-self.x)**2+(aim.y-self.y)**2
             if dist<self.range:
-                aim.new(self.inf, int(self.func(t)*self.power*(self.range-dist)))
+                aim.new(self.inf, int(self.func(t)*self.power/(1+dist)))
 class agent:
-    def __init__(self, x=random.random(), y=random.random(), dad=None, moral=np.array([0.0] * n)):
+    def __init__(self, x=random.random(), y=random.random(), dad=None, moral=np.array([0.0] * n), knowlege=np.array([0.0] * n), type=1):
         global all_conn
         global all_usef
+        self.type=type
         self.dead=False
-        self.moral = moral.copy()
+        self.moral = np.array(moral.copy())
         self.energy = 100
         self.useful = 1
         all_usef +=1
         self.hist =[]
-        self.knowlege =np.array([0.0] * n)
+        self.knowlege = np.array(knowlege.copy())
         self.x=x
         self.y=y
         self.resist=1
         self.age=1
         self.neibours=set()
         for i in agents:
-            if(i!=self):
-                p=i.neib_count()/all_conn
+            if(i!=self) and (i not in self.neibours):
+                p = i.neib_count() * angle(self.knowlege, i.knowlege) / all_conn
+
                 if(random.random()<p):
 
                     i.neibours.add(self)
@@ -71,7 +81,6 @@ class agent:
             self.useful+=learned*self.moral[i]
             self.moral[i]-=learned*self.moral[i]
         '''
-        print("prev", self.moral)
         i=np.argmax(self.moral)
         learned = (1 / (1 + np.exp(-2 * a * (n * self.moral[i] - b))))
         #print('l', learned)
@@ -79,7 +88,6 @@ class agent:
         all_usef += learned * self.moral[i]
         self.knowlege[i]+=learned * self.moral[i]
         self.moral[i] -= learned * self.moral[i]
-        print("fin", self.moral, learned)
         #print('moral', self.moral[i])
 
         self.energy+=min(self.useful, energy_cap*self.useful/all_usef)
@@ -87,8 +95,8 @@ class agent:
         #self.useful-=self.age*0.6
         if(len(self.neibours)==0):
             for i in agents:
-                if (i != self):
-                    p=i.neib_count()/all_conn
+                if (i != self)  and (i not in self.neibours):
+                    p=i.neib_count()*angle(self.knowlege, i.knowlege)/all_conn
                     if(random.random()<p):
                         i.neibours.add(self)
                         self.neibours.add(i)
@@ -97,16 +105,15 @@ class agent:
 
         if self.energy >=birth_cost:
             self.energy-=birth_cost
-            agents.append(agent(self.x+(uniform.rvs()-1/2)/10, self.y+(uniform.rvs()-1/2)/10))
+            agents.append(agent(self.x+(uniform.rvs()-1/2)/10, self.y+(uniform.rvs()-1/2)/10, self,self.moral/10, self.knowlege/10, self.type))
         if self.energy<=0:
 
             self.dead=True
-            self.neibours.discard(self)
             all_usef-=self.useful
             for i in self.neibours:
                 all_conn-=2
                 i.neibours.remove(self)
-            del self
+            self.neibours.clear()
 
     def new(self, q, power):
         self.moral+=(np.array(q.inf)*power)
@@ -123,23 +130,28 @@ class agent:
         return len(self.neibours)
 
     def show(self):
-        print("check", self.moral)
-
         print(self.moral, self.knowlege, self.energy, self.useful, self.neib_count(), self.x, self.y)
-na=10
-def animate(i):
-    scat.set_offsets((x[i], 0))
-    return scat,
-
+nb=50
+ng=50
+na=nb+ng
 energy_cap=na*100
 all_usef=0
-agents.append(agent(random.random(), random.random()))
-agents.append(agent(random.random(), random.random()))
+agents.append(agent(random.random(), random.random(), moral=[1, 0,0, 0], knowlege=[100, 0, 0, 0], type='b'))
+agents.append(agent(random.random(), random.random(), moral=[0, 1,0, 0], knowlege=[0, 100, 0, 0], type='g'))
 agents[0].neibours.add(agents[1])
 agents[1].neibours.add(agents[0])
 
-for i in range(na-2):
-    agents.append(agent(random.random(), random.random()))
+for i in range(min(nb-1, ng-1)):
+    agents.append(agent(random.random(), random.random(), moral=[1, 0, 0, 0], knowlege=[100, 0, 0, 0], type='b'))
+    agents.append(agent(random.random(), random.random(), moral=[0, 100, 0, 0], knowlege=[0, 100, 0, 0], type='g'))
+if(max(nb, ng)==nb):
+    ty='b'
+else:
+    ty='g'
+for i in range(min(nb-1, ng-1), max((nb-1, ng-1))):
+    agents.append(agent(random.random(), random.random(), moral=[0, 100, 0, 0], knowlege=[0, 100, 0, 0], type=ty))
+
+
 def fun(t):
     return np.sin(t)+2
 ur=sourse([1, 0,0,0], 1, 1, 10, fun)
@@ -147,11 +159,12 @@ ul=sourse([0, 1,0,0], 0, 1, 10, fun)
 lr=sourse([0, 0,1,0], 1, 0, 10, fun)
 ll=sourse([0, 0,0,1], 0, 0, 10, fun)
 sourses=[ur, ul, lr, ll]
-time=100
+time=500
 shoot_pause=1
 
 plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
-plt.scatter([i.x for i in agents], [i.y for i in agents], c='b')
+for i in agents:
+    plt.scatter(i.x , i.y, c=i.type)
 plt.show()
 print(all_conn)
 for t in range(time):
@@ -161,12 +174,11 @@ for t in range(time):
             i.shoot(agents, t)
     for i in agents.copy():
         i.upd()
-    agents[0].show()
-
     agents=list(filter(lambda x: not x.dead, agents))
-    agents[0].show()
+    plt.clf()
     plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
-    plt.scatter([i.x for i in agents], [i.y for i in agents], c='b')
+    for i in agents:
+        plt.scatter(i.x, i.y, c=i.type)
 
     plt.draw()
     '''
@@ -178,7 +190,8 @@ for t in range(time):
 print(len(agents))
 for i in agents:
     #print(i.neibours)
-    i.show()
+    1
+    #i.show()
 
 plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
 plt.scatter([i.x for i in agents], [i.y for i in agents])
