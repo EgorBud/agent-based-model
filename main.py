@@ -1,12 +1,15 @@
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import uniform
+import matplotlib.animation as animation
+
 np.set_printoptions(precision=3, suppress=True)
 a=1/10
 n=4
 power=10
 share_cost=10
-birth_cost=100
+birth_cost=150
 agents=[]
 all_conn=2
 energy_cap=0
@@ -16,33 +19,32 @@ class Quantum:
         self.inf=a.copy()
 class sourse:
 
-    def __init__(self,  q, x, y):
+    def __init__(self,  q, x, y, power=power, func=lambda x:1):
         self.x=x
         self.y=y
         self.power=power
         self.range=1
         self.inf=Quantum(q)
-    def shoot(self, aims):
+        self.func=func
+    def shoot(self, aims, t=0):
         for aim in aims:
             dist=(aim.x-self.x)**2+(aim.y-self.y)**2
             if dist<self.range:
-                aim.new(self.inf, int(self.power*(self.range-dist)))
+                aim.new(self.inf, int(self.func(t)*self.power*(self.range-dist)))
 class agent:
-    def __init__(self, x=random.random(), y=random.random(), dad=None):
+    def __init__(self, x=random.random(), y=random.random(), dad=None, moral=np.array([0.0] * n)):
         global all_conn
         global all_usef
         self.dead=False
-        self.quanta = []
-        self.moral = np.array([0.0] * n)
+        self.moral = moral
         self.energy = 100
         self.useful = 1
         all_usef +=1
         self.hist =[]
-        for i in range(n):
-            self.moral[i]=random.random()
+
         self.x=x
         self.y=y
-        self.resist=random.random()
+        self.resist=1
         self.age=1
         self.neibours=set()
         for i in agents:
@@ -87,7 +89,7 @@ class agent:
         self.energy-=self.age**2/10
         if self.energy >=birth_cost:
             self.energy-=birth_cost
-            agents.append(agent(self.x+(random.random()-1/2)/10, self.y+(random.random()-1/2)/10))
+            agents.append(agent(self.x+(uniform.rvs()-1/2)/10, self.y+(uniform.rvs()-1/2)/10))
         if self.energy<=0:
             #print('dead')
 
@@ -105,17 +107,9 @@ class agent:
         if power > 0:
             for i in self.neibours:
                 if self.energy>share_cost:
-                    i.share(q, power, self)
+                    i.new(q, power)
                     self.energy-=share_cost
-    def share(self, q, power, source):
-        self.moral+=(np.array(q.inf)*power)
-        power-=1
-        if power > 0:
-            for i in self.neibours:
-                if(i!=source):
-                    if self.energy>share_cost:
-                        i.new(q, power)
-                        self.energy-=share_cost
+
     def get_neib(self):
         return [(i.x, i.y) for i in self.neibours]
     def neib_count(self):
@@ -124,7 +118,10 @@ class agent:
     def show(self):
         print(self.moral, self.energy, self.useful, self.neib_count(), self.x, self.y)
 na=100
-#neib=4
+def animate(i):
+    scat.set_offsets((x[i], 0))
+    return scat,
+
 energy_cap=na*100
 all_usef=0
 agents.append(agent(random.random(), random.random()))
@@ -134,18 +131,12 @@ agents[1].neibours.add(agents[0])
 
 for i in range(na-2):
     agents.append(agent(random.random(), random.random()))
-'''
-for i in agents:
-    for j in range(neib):
-        bro=agents[int(random.random()*na)]
-        if(bro!=i):
-            i.neibours.add(bro)
-            bro.neibours.add(i)
-'''
-ur=sourse([1, 0,0,0], 1, 1)
-ul=sourse([0, 1,0,0], 0, 1)
-lr=sourse([0, 0,1,0], 1, 0)
-ll=sourse([0, 0,0,1], 0, 0)
+def fun(t):
+    return np.sin(t)+2
+ur=sourse([1, 0,0,0], 1, 1, 10, fun)
+ul=sourse([0, 1,0,0], 0, 1, 10, fun)
+lr=sourse([0, 0,1,0], 1, 0, 10, fun)
+ll=sourse([0, 0,0,1], 0, 0, 10, fun)
 sourses=[ur, ul, lr, ll]
 time=1000
 shoot_pause=3
@@ -157,13 +148,17 @@ for t in range(time):
     print(t)
     if (t%shoot_pause==0):
         for i in sourses:
-            i.shoot(agents)
+            i.shoot(agents, t)
     for i in agents.copy():
         i.upd()
     agents=list(filter(lambda x: not x.dead, agents))
     plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
     plt.scatter([i.x for i in agents], [i.y for i in agents], c='b')
     plt.draw()
+    '''
+    ani = animation.FuncAnimation(plt, animate, repeat=True,
+                                  frames=time - 1, interval=50)
+    '''
     plt.pause(.001)
     plt.clf()
 print(all_conn)
@@ -173,6 +168,6 @@ for i in agents:
 
 plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
 plt.scatter([i.x for i in agents], [i.y for i in agents])
-plt.draw()
+plt.show()
 
 #print(q)
