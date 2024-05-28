@@ -9,7 +9,7 @@ a=1/10
 n=4
 power=10
 share_cost=10
-birth_cost=150
+birth_cost=200
 agents=[]
 all_conn=2
 energy_cap=0
@@ -36,12 +36,12 @@ class agent:
         global all_conn
         global all_usef
         self.dead=False
-        self.moral = moral
+        self.moral = moral.copy()
         self.energy = 100
         self.useful = 1
         all_usef +=1
         self.hist =[]
-
+        self.knowlege =np.array([0.0] * n)
         self.x=x
         self.y=y
         self.resist=1
@@ -62,19 +62,26 @@ class agent:
     def upd(self):
         global all_usef
         global all_conn
-        b=self.moral.sum()+self.useful
+        b=self.moral.sum()
         self.age+=1
+
         '''
         for i in range(len(self.moral)):
             learned=(1/(1+np.exp(-2*a*(n*self.moral[i]-b))))
             self.useful+=learned*self.moral[i]
             self.moral[i]-=learned*self.moral[i]
         '''
+        print("prev", self.moral)
         i=np.argmax(self.moral)
         learned = (1 / (1 + np.exp(-2 * a * (n * self.moral[i] - b))))
+        #print('l', learned)
         self.useful += learned * self.moral[i]
         all_usef += learned * self.moral[i]
+        self.knowlege[i]+=learned * self.moral[i]
         self.moral[i] -= learned * self.moral[i]
+        print("fin", self.moral, learned)
+        #print('moral', self.moral[i])
+
         self.energy+=min(self.useful, energy_cap*self.useful/all_usef)
         self.hist.append(self.useful)
         #self.useful-=self.age*0.6
@@ -87,11 +94,11 @@ class agent:
                         self.neibours.add(i)
                         all_conn=all_conn+2
         self.energy-=self.age**2/10
+
         if self.energy >=birth_cost:
             self.energy-=birth_cost
             agents.append(agent(self.x+(uniform.rvs()-1/2)/10, self.y+(uniform.rvs()-1/2)/10))
         if self.energy<=0:
-            #print('dead')
 
             self.dead=True
             self.neibours.discard(self)
@@ -116,8 +123,10 @@ class agent:
         return len(self.neibours)
 
     def show(self):
-        print(self.moral, self.energy, self.useful, self.neib_count(), self.x, self.y)
-na=100
+        print("check", self.moral)
+
+        print(self.moral, self.knowlege, self.energy, self.useful, self.neib_count(), self.x, self.y)
+na=10
 def animate(i):
     scat.set_offsets((x[i], 0))
     return scat,
@@ -138,12 +147,13 @@ ul=sourse([0, 1,0,0], 0, 1, 10, fun)
 lr=sourse([0, 0,1,0], 1, 0, 10, fun)
 ll=sourse([0, 0,0,1], 0, 0, 10, fun)
 sourses=[ur, ul, lr, ll]
-time=1000
-shoot_pause=3
+time=100
+shoot_pause=1
 
 plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
 plt.scatter([i.x for i in agents], [i.y for i in agents], c='b')
 plt.show()
+print(all_conn)
 for t in range(time):
     print(t)
     if (t%shoot_pause==0):
@@ -151,9 +161,13 @@ for t in range(time):
             i.shoot(agents, t)
     for i in agents.copy():
         i.upd()
+    agents[0].show()
+
     agents=list(filter(lambda x: not x.dead, agents))
+    agents[0].show()
     plt.scatter([i.x for i in sourses], [i.y for i in sourses], c='r')
     plt.scatter([i.x for i in agents], [i.y for i in agents], c='b')
+
     plt.draw()
     '''
     ani = animation.FuncAnimation(plt, animate, repeat=True,
@@ -161,7 +175,7 @@ for t in range(time):
     '''
     plt.pause(.001)
     plt.clf()
-print(all_conn)
+print(len(agents))
 for i in agents:
     #print(i.neibours)
     i.show()
